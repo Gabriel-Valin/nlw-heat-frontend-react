@@ -1,3 +1,4 @@
+import { io } from 'socket.io-client'
 import { api } from '../../services/api'
 
 import styles from './styles.module.scss'
@@ -7,15 +8,39 @@ import { useEffect, useState } from 'react'
 
 type Message = {
     id: string
-    msgContent: string
+    text: string
     user: {
         name: string
         avatar_url: string
     }
 }
 
+const messagesQueue: Message[] = []
+
+const socket = io('http://localhost:4000')
+
+socket.on('new_message', (newMessage: Message) => {
+    console.log(newMessage)
+    messagesQueue.push(newMessage)
+})
+
 export function MessageList() {
     const [messages, setMessages] = useState<Message[]>([])
+
+    useEffect(() => {
+        setInterval(() => {
+            console.log(messagesQueue)
+            if (messagesQueue.length > 0) {
+                setMessages(prevState => [
+                    messagesQueue[0],
+                    prevState[0],
+                    prevState[1]
+                ].filter(Boolean))
+
+                messagesQueue.shift()
+            }
+        }, 3500)
+    }, [])
 
     useEffect(() => {
         api.get<Message[]>('messages/last3').then(response => {
@@ -31,7 +56,7 @@ export function MessageList() {
                 {messages.map(message => {
                     return (
                         <li key={message.id} className={styles.message}>
-                            <p className={styles.messageContent}>{message.msgContent}</p>
+                            <p className={styles.messageContent}>{message.text}</p>
                             <div className={styles.messageUser}>
                                 <div className={styles.userImage}>
                                     <img src={message.user.avatar_url} />
